@@ -96,7 +96,7 @@ class MySliceProvider : SliceProvider() {
     private fun createInteractiveSlice(context: Context, sliceUri: Uri): Slice {
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val isWifiEnabled = wifiManager.isWifiEnabled
-        val subtitle = if (isWifiEnabled) "Enabled" else "Disabled"
+        val wifiSubtitle = if (isWifiEnabled) "Enabled" else "Disabled"
 
         return list(context, sliceUri, ListBuilder.INFINITY) {
             row {
@@ -106,7 +106,7 @@ class MySliceProvider : SliceProvider() {
 
             row {
                 title = "Wi-Fi"
-                this.subtitle = subtitle
+                subtitle = wifiSubtitle
                 primaryAction = createWiFiToggleAction(isWifiEnabled)
             }
         }
