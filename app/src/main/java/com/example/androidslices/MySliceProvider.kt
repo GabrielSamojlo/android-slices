@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.net.wifi.WifiManager
 import androidx.core.graphics.drawable.IconCompat
 import androidx.slice.Slice
 import androidx.slice.SliceProvider
@@ -39,6 +40,7 @@ class MySliceProvider : SliceProvider() {
         return when {
             sliceUri.path == "/hello-world" -> createHelloWorldSlice(context, sliceUri)
             sliceUri.path == "/complex" -> createComplexSlice(context, sliceUri)
+            sliceUri.path == "/interactive" -> createInteractiveSlice(context, sliceUri)
 
             else -> null
         }
@@ -91,6 +93,47 @@ class MySliceProvider : SliceProvider() {
         }
     }
 
+    private fun createInteractiveSlice(context: Context, sliceUri: Uri): Slice {
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val isWifiEnabled = wifiManager.isWifiEnabled
+        val subtitle = if (isWifiEnabled) "Enabled" else "Disabled"
+
+        return list(context, sliceUri, ListBuilder.INFINITY) {
+            row {
+                title = "Make me a Toast!"
+                primaryAction = createToastAction()
+            }
+
+            row {
+                title = "Wi-Fi"
+                this.subtitle = subtitle
+                primaryAction = createWiFiToggleAction(isWifiEnabled)
+            }
+        }
+    }
+
+    private fun createToastAction(): SliceAction {
+        val intent = Intent(context, MyBroadcastReceiver::class.java).apply {
+            action = MyBroadcastReceiver.TOAST_ACTION
+        }
+
+        return SliceAction.create(
+                PendingIntent.getBroadcast(context, 0, intent, 0),
+                IconCompat.createWithResource(context, R.drawable.ic_wb_sunny_black_24dp),
+                ListBuilder.SMALL_IMAGE,
+                "Make Toast"
+        )
+    }
+
+    private fun createWiFiToggleAction(isBluetoothEnabled: Boolean): SliceAction {
+        val intent = Intent(context, MyBroadcastReceiver::class.java).apply {
+            action = MyBroadcastReceiver.WIFI_TOGGLE_ACTION
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
+        return SliceAction.createToggle(pendingIntent, "Wi-Fi Action", isBluetoothEnabled)
+    }
+
     private fun createActivityAction(): SliceAction? {
         return SliceAction.create(
                 PendingIntent.getActivity(
@@ -106,5 +149,9 @@ class MySliceProvider : SliceProvider() {
     }
 
     override fun onSliceUnpinned(sliceUri: Uri?) {
+    }
+
+    companion object {
+        val INTERACTIVE_SLICE_URI = Uri.parse("content://com.example.androidslices/interactive")
     }
 }
