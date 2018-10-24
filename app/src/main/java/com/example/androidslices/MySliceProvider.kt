@@ -7,12 +7,16 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.net.wifi.WifiManager
+import android.os.Handler
 import androidx.core.graphics.drawable.IconCompat
 import androidx.slice.Slice
 import androidx.slice.SliceProvider
 import androidx.slice.builders.*
+import java.util.concurrent.Executors
 
 class MySliceProvider : SliceProvider() {
+
+    private var currentValue = -1
 
     override fun onCreateSliceProvider(): Boolean {
         return true
@@ -41,6 +45,7 @@ class MySliceProvider : SliceProvider() {
             sliceUri.path == "/hello-world" -> createHelloWorldSlice(context, sliceUri)
             sliceUri.path == "/complex" -> createComplexSlice(context, sliceUri)
             sliceUri.path == "/interactive" -> createInteractiveSlice(context, sliceUri)
+            sliceUri.path == "/dynamic" -> createDynamicSlice(context, sliceUri)
 
             else -> null
         }
@@ -112,6 +117,45 @@ class MySliceProvider : SliceProvider() {
         }
     }
 
+    private fun createDynamicSlice(context: Context, sliceUri: Uri): Slice {
+        fetchCurrentValueAsync()
+
+        return if (currentValue >= 0) {
+            list(context, sliceUri, ListBuilder.INFINITY) {
+                inputRange {
+                    title = "Change value"
+                    value = currentValue
+                    primaryAction = createActivityAction()
+                    inputAction = createInputPendingIntent()
+                }
+            }
+        } else {
+            list(context, sliceUri, ListBuilder.INFINITY) {
+                row {
+                    title = "Loading"
+                    primaryAction = createActivityAction()
+                }
+            }
+        }
+    }
+
+    private fun fetchCurrentValueAsync() {
+        Executors.newSingleThreadExecutor().execute {
+            val context = context ?: return@execute
+
+            val value = SharedPreferencesUtil.getValue(context)
+            if (value != currentValue) {
+                currentValue = value
+                context.contentResolver.notifyChange(DYNAMIC_SLICE_URI, null)
+            }
+        }
+    }
+
+    private fun createInputPendingIntent(): PendingIntent {
+        val intent = Intent(context, MyBroadcastReceiver::class.java)
+        return PendingIntent.getBroadcast(context, 0, intent, 0)
+    }
+
     private fun createToastAction(): SliceAction {
         val intent = Intent(context, MyBroadcastReceiver::class.java).apply {
             action = MyBroadcastReceiver.TOAST_ACTION
@@ -125,13 +169,13 @@ class MySliceProvider : SliceProvider() {
         )
     }
 
-    private fun createWiFiToggleAction(isBluetoothEnabled: Boolean): SliceAction {
+    private fun createWiFiToggleAction(isWiFiEnabled: Boolean): SliceAction {
         val intent = Intent(context, MyBroadcastReceiver::class.java).apply {
             action = MyBroadcastReceiver.WIFI_TOGGLE_ACTION
         }
 
         val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
-        return SliceAction.createToggle(pendingIntent, "Wi-Fi Action", isBluetoothEnabled)
+        return SliceAction.createToggle(pendingIntent, "Wi-Fi Action", isWiFiEnabled)
     }
 
     private fun createActivityAction(): SliceAction? {
@@ -146,6 +190,12 @@ class MySliceProvider : SliceProvider() {
     }
 
     override fun onSlicePinned(sliceUri: Uri?) {
+        val context = context ?: return
+
+        if (sliceUri == DYNAMIC_SLICE_URI) {
+            currentValue = SharedPreferencesUtil.getValue(context)
+            context.contentResolver.notifyChange(DYNAMIC_SLICE_URI, null)
+        }
     }
 
     override fun onSliceUnpinned(sliceUri: Uri?) {
@@ -153,5 +203,6 @@ class MySliceProvider : SliceProvider() {
 
     companion object {
         val INTERACTIVE_SLICE_URI = Uri.parse("content://com.example.androidslices/interactive")
+        val DYNAMIC_SLICE_URI = Uri.parse("content://com.example.androidslices/dynamic")
     }
 }

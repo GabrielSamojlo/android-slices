@@ -13,12 +13,25 @@ class MyBroadcastReceiver : BroadcastReceiver() {
         intent ?: return
         context ?: return
 
-        if (intent.action == TOAST_ACTION) {
-            Toast.makeText(context, "Here is your Toast.", Toast.LENGTH_LONG).show()
-        } else if (intent.action == WIFI_TOGGLE_ACTION) {
-            val isWiFiTurnedOn = intent.getBooleanExtra(Slice.EXTRA_TOGGLE_STATE, false)
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            wifiManager.isWifiEnabled = isWiFiTurnedOn
+        when (intent.action) {
+            TOAST_ACTION -> {
+                Toast.makeText(context, "Here is your Toast.", Toast.LENGTH_LONG).show()
+            }
+
+            WIFI_TOGGLE_ACTION -> {
+                val isWiFiTurnedOn = intent.getBooleanExtra(Slice.EXTRA_TOGGLE_STATE, false)
+                val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+                wifiManager.isWifiEnabled = isWiFiTurnedOn
+            }
+
+            else -> {
+                if (intent.hasExtra(Slice.EXTRA_RANGE_VALUE)) {
+                    val value = intent.getIntExtra(Slice.EXTRA_RANGE_VALUE, -1)
+                    if (value != -1) {
+                        SharedPreferencesUtil.save(context, value)
+                    }
+                }
+            }
         }
     }
 
